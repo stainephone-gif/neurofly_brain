@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "neurofly"
+version = "0.1.0"
+description = "Whole-brain leaky integrate-and-fire model of the fruit fly (Shiu et al. 2024) as a small, hackable NumPy simulator"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "pandas>=2.0",
+    "pyarrow>=12",
+]
+
+[project.optional-dependencies]
+gallery = ["websockets>=13"]
+plot = ["matplotlib>=3.7"]
+dev = ["pytest>=7"]
+
+[project.scripts]
+neurofly = "neurofly.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["neurofly*"]
+
+[tool.setuptools.package-data]
+neurofly = []
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

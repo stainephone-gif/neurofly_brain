@@ -1,0 +1,16 @@
+# data and simulation outputs (downloaded / generated, not tracked)
+data/
+results/
+*.parquet
+*.npz
+
+# python
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.ipynb_checkpoints/

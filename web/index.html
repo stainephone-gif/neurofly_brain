@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>NeuroFly</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { --bg:#05060a; --fg:#e8e6df; --dim:#8d8b84; --acc:#ffd166; --cyan:#4fd1ff; --red:#ff5a5a; --panel:rgba(10,12,18,.82); }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--fg); font:14px/1.35 -apple-system, "Segoe UI", Roboto, sans-serif; overflow:hidden; }
+  canvas { display:block; }
+  #hud { position:fixed; left:16px; top:14px; pointer-events:none; }
+  #hud h1 { margin:0 0 4px; font-size:20px; font-weight:600; letter-spacing:.04em; }
+  #hud .row { color:var(--dim); font-variant-numeric: tabular-nums; }
+  #hud b { color:var(--fg); font-weight:500; }
+  #tools { position:fixed; left:16px; bottom:16px; display:flex; flex-direction:column; gap:8px; max-width:min(92vw, 420px); }
+  .panel { background:var(--panel); backdrop-filter: blur(10px); border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:10px 12px; }
+  .modes { display:flex; gap:6px; flex-wrap:wrap; }
+  button { background:rgba(255,255,255,.06); color:var(--fg); border:1px solid rgba(255,255,255,.12); border-radius:8px; padding:7px 11px; font:inherit; cursor:pointer; }
+  button:hover { background:rgba(255,255,255,.12); }
+  button.on { background:var(--acc); color:#1a1300; border-color:var(--acc); }
+  button.danger { color:var(--red); }
+  .sliders { display:grid; grid-template-columns:auto 1fr auto; gap:6px 10px; align-items:center; margin-top:8px; color:var(--dim); }
+  .sliders output { color:var(--fg); min-width:5ch; text-align:right; font-variant-numeric: tabular-nums; }
+  input[type=range] { width:100%; accent-color: var(--acc); }
+  .presets { display:flex; gap:6px; flex-wrap:wrap; }
+  .presets button.stim { border-color:var(--cyan); color:var(--cyan); }
+  #info { position:fixed; right:16px; top:14px; width:min(92vw, 360px); display:none; }
+  #info h2 { margin:0 0 4px; font-size:16px; font-weight:600; }
+  #info .id { color:var(--dim); font-size:12px; word-break:break-all; }
+  #info .stats { margin:8px 0; color:var(--dim); display:grid; grid-template-columns:1fr 1fr; gap:2px 12px; }
+  #info .stats b { color:var(--fg); font-weight:500; }
+  #info .actions { display:flex; gap:6px; flex-wrap:wrap; }
+  #hint { position:fixed; left:50%; bottom:16px; transform:translateX(-50%); color:var(--dim); pointer-events:none; text-align:center; font-size:13px; }
+  #legend { position:fixed; right:16px; bottom:16px; color:var(--dim); font-size:12px; display:grid; grid-template-columns:auto auto; gap:2px 8px; align-items:center; }
+  #legend i { display:inline-block; width:10px; height:10px; border-radius:50%; }
+  #status { position:fixed; left:50%; top:14px; transform:translateX(-50%); color:var(--dim); font-size:13px; }
+  @media (max-width: 700px) { #legend { display:none; } #info { top:auto; bottom:16px; right:16px; } }
+</style>
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+</head>
+<body>
+<div id="hud">
+  <h1>NeuroFly</h1>
+  <div class="row">мозг дрозофилы · <b id="n-neurons">…</b> нейронов · <b id="n-syn">…</b> синапсов</div>
+  <div class="row">время модели <b id="t">0.00 с</b> · скорость <b id="speed">…</b></div>
+  <div class="row">спайков/с <b id="rate">0</b> · активных нейронов <b id="active">0</b></div>
+  <div class="row">возбуждено <b id="n-stim">0</b> · выключено <b id="n-sil">0</b> · ваших связей <b id="n-extra">0</b></div>
+</div>
+<div id="status"></div>
+
+<div id="tools">
+  <div class="panel">
+    <div class="modes">
+      <button data-mode="look" class="on">Смотреть</button>
+      <button data-mode="activate">Возбудить</button>
+      <button data-mode="silence">Выключить</button>
+      <button data-mode="connect">Связать</button>
+    </div>
+    <div class="sliders">
+      <span>частота</span><input id="rate-slider" type="range" min="10" max="300" step="10" value="100"><output id="rate-out">100 Гц</output>
+      <span>сила связи</span><input id="w-slider" type="range" min="1" max="200" step="1" value="30"><output id="w-out">30</output>
+      <span>знак</span><div><button id="sign" class="on">+ возбуждающая</button></div><span></span>
+    </div>
+    <div class="modes" style="margin-top:8px">
+      <button id="pause">Пауза</button>
+      <button id="reset" title="вернуть мозг в покой, оставить вмешательства">Покой</button>
+      <button id="clear" class="danger" title="снять все вмешательства">Снять всё</button>
+      <button id="toggle-scope">Тип клеток: обе стороны</button>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="presets" id="presets"></div>
+  </div>
+</div>
+
+<div id="info" class="panel">
+  <h2 id="info-label">…</h2>
+  <div class="id" id="info-id"></div>
+  <div class="stats" id="info-stats"></div>
+  <div class="actions">
+    <button id="info-activate">Возбудить тип</button>
+    <button id="info-silence">Выключить тип</button>
+    <button id="info-synapses">Связи</button>
+    <button id="info-skeleton">Форма</button>
+    <button id="info-close">×</button>
+  </div>
+</div>
+
+<div id="hint">щёлкните по нейрону · колесо: масштаб · перетаскивание: вращение</div>
+<div id="legend"></div>
+<script type="module" src="./app.js"></script>
+</body>
+</html>
